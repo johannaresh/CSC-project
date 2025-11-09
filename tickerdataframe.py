@@ -4,32 +4,27 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 ticker_sym = "AAPL"
-start_date = '2025-01-01'
+start_date = '2016-01-01'
 
 stock_price = yf.download(ticker_sym, start = start_date, end=None, auto_adjust=False)
-
-stock = yf.Ticker(ticker_sym)
-stock_info = stock.info
-stock_dividends = stock.dividends
-stock_splits = stock.splits
 
 weekly_data = stock_price.resample('W').last() 
 # allows to change the frequency of your time-series data
 # such as converting daily data to weekly, monthly, or quarterly data
 
-def simple_ma(weekly_df, n=2): # Simple Moving Average
+def simple_ma(weekly_df, n=20): # Simple Moving Average
     weekly_df = weekly_df.copy()
     weekly_df[f"SMA{n}"] = weekly_df['Adj Close'].rolling(window=n).mean()
     return weekly_df
 
-def exp_ma(series, n=12): 
+def exp_ma(series, n=20): 
     delta = 2 / (n + 1)
     ema = [series.iloc[0]]
     for t in range(1, len(series)):
         ema.append(delta * series.iloc[t] + (1 - delta) * ema[-1])
     return ema
 
-def calc_exp(df, ticker, column="Adj Close", n=12): # Exponential Moving Average
+def calc_exp(df, ticker, column="Adj Close", n=20): # Exponential Moving Average
     df = df.copy()
     df[(f"EMA{n}", ticker)] = exp_ma(df[(column, ticker)], n)
     return df
@@ -86,14 +81,14 @@ atr_df = calc_atr(rsi_df)
 obv_df = calc_obv(atr_df)
 bol_df = calc_bollinger_percent_b(obv_df)
 
-relative_info = bol_df[['Adj Close', 'SMA2', 'EMA12', 'RSI14', 'ATR14', 'OBV','Boll_%B20' ]].copy()
-
-print(relative_info)
+relative_info = bol_df[['Adj Close', 'SMA20', 'EMA20', 'RSI14', 'ATR14', 'OBV','Boll_%B20' ]].copy()
+relative_info_train = relative_info.iloc[20:416]
+relative_info_test = relative_info.iloc[417:]
 
 def plot_ma(df, ticker_sym):
     plt.figure(figsize=(12,6))
-    plt.plot(df.index, df['SMA2'], label='SMA (2)', linewidth=1.5)
-    plt.plot(df.index, df['EMA12'], label='EMA (12)', linewidth=1.5)
+    plt.plot(df.index, df['SMA20'], label='SMA (20)', linewidth=1.5)
+    plt.plot(df.index, df['EMA20'], label='EMA (20)', linewidth=1.5)
     plt.title(f"{ticker_sym} moving averages 2025")
     plt.xlabel('Date')
     plt.ylabel('MA')
