@@ -1,0 +1,110 @@
+import yfinance as yf
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+ticker_sym = "AAPL"
+start_date = '2025-01-01'
+
+stock_price = yf.download(ticker_sym, start = start_date, end=None, auto_adjust=False)
+
+stock = yf.Ticker(ticker_sym)
+stock_info = stock.info
+stock_dividends = stock.dividends
+stock_splits = stock.splits
+
+weekly_data = stock_price.resample('W').last() 
+# allows to change the frequency of your time-series data
+# such as converting daily data to weekly, monthly, or quarterly data
+
+def simple_ma(weekly_df, n=2): # Simple Moving Average
+    weekly_df = weekly_df.copy()
+    weekly_df[f"SMA{n}"] = weekly_df['Adj Close'].rolling(window=n).mean()
+    return weekly_df
+
+def exp_ma(series, n=12): 
+    delta = 2 / (n + 1)
+    ema = [series.iloc[0]]
+    for t in range(1, len(series)):
+        ema.append(delta * series.iloc[t] + (1 - delta) * ema[-1])
+    return ema
+
+def calc_exp(df, ticker, column="Adj Close", n=12): # Exponential Moving Average
+    df = df.copy()
+    df[(f"EMA{n}", ticker)] = exp_ma(df[(column, ticker)], n)
+    return df
+
+def calc_rsi(df, column="Adj Close", n=14): # Relative Strength Index
+    df = df.copy()
+    delta = df[column].diff()
+
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+
+    avg_gain = gain.rolling(window=n).mean()
+    avg_loss = loss.rolling(window=n).mean()
+
+    rs = avg_gain / avg_loss
+    df[f"RSI{n}"] = 100 - (100 / (1 + rs))
+    return df
+
+def calc_atr(df, n=14): # Average True Range
+    df = df.copy()
+    high, low, close = df["High"], df["Low"], df["Adj Close"]
+
+    tr1 = high - low
+    tr2 = (high - close.shift()).abs()
+    tr3 = (low - close.shift()).abs()
+
+    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+    df[f"ATR{n}"] = tr.rolling(window=n).mean()
+    return df
+
+# OBV increases when price rises on high volume, decreases when it falls on high volume
+def calc_obv(df, close_col="Adj Close", vol_col="Volume"): 
+    df = df.copy()
+    direction = np.sign(df[close_col].diff()).fillna(0)
+    df["OBV"] = (direction * df[vol_col]).cumsum()
+    return df
+
+ #shows where the current price sits within its volatility range (0 = lower band, 1 = upper band)
+def calc_bollinger_percent_b(df, column="Adj Close", n=20, k=2):
+    df = df.copy()
+    sma = df[column].rolling(window=n).mean()
+    std = df[column].rolling(window=n).std() # Rolling standard deviation
+
+    upper = sma + k * std
+    lower = sma - k * std
+
+    df[f"Boll_%B{n}"] = (df[column] - lower) / (upper - lower)
+    return df
+
+sma_df = simple_ma(weekly_data)
+ema_df = calc_exp(sma_df, ticker_sym)
+rsi_df = calc_rsi(ema_df)
+atr_df = calc_atr(rsi_df)
+obv_df = calc_obv(atr_df)
+bol_df = calc_bollinger_percent_b(obv_df)
+
+relative_info = bol_df[['Adj Close', 'SMA2', 'EMA12', 'RSI14', 'ATR14', 'OBV','Boll_%B20' ]].copy()
+
+print(relative_info)
+
+def plot_ma(df, ticker_sym):
+    plt.figure(figsize=(12,6))
+    plt.plot(df.index, df['SMA2'], label='SMA (2)', linewidth=1.5)
+    plt.plot(df.index, df['EMA12'], label='EMA (12)', linewidth=1.5)
+    plt.title(f"{ticker_sym} moving averages 2025")
+    plt.xlabel('Date')
+    plt.ylabel('MA')
+    plt.legend()
+    return plt.show()
+
+def plot_rsi(df, ticker_sym):
+    plt.figure(figsize=(12,6))
+    plt.plot(df.index, df['RSI14'], label= 'RSI (14)', linewidth=1.5)
+    plt.title(f"{ticker_sym} relative strength index 2025")
+    plt.xlabel('Date')
+    plt.ylabel('RSI')
+    plt.legend()
+    return plt.show()
