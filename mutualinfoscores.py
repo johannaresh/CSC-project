@@ -31,6 +31,6 @@ def plot_mi_scores(scores):
     plt.title("Mutual Information Scores")
     return plt.show()
 
-print(mitraining_scores)
-print(mitesting_scores)
+plot_mi_scores(mitraining_scores)
+plot_mi_scores(mitesting_scores)
 

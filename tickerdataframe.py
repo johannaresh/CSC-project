@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-ticker_sym = "AAPL"
+ticker_sym = "MSFT"
 start_date = '2016-01-01'
 
 stock_price = yf.download(ticker_sym, start = start_date, end=None, auto_adjust=False)
